@@ -1,0 +1,19 @@
+inference_config:
+  diversity_rand_ratio: 0.1
+
+validation_data:
+
+  width: 512
+  height: 512
+  num_inference_steps: 20
+  guidance_scale: 12.5
+  use_inv_latent: True
+  num_inv_steps: 50
+  negative_prompt: "bad hands, missing fingers, cropped, worst quality, low quality, deformed bod, ugly, unrealistic"
+  interpolate_k: 0
+  attention_type_former: [ "self", "first", "former" ]
+  attention_type_latter: [ "self" ]
+  attention_adapt_step: 20
+
+seed: 1625 #374 #1625 #333 # 374 for contruction
+mixed_precision: fp16
