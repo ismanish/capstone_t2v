@@ -113,13 +113,13 @@ def main(conf):
     prompt = generate_frame_descriptions(context, custom = False)
     # print(prompt)
     
-    #Volcanic eruption
-    prompt = ["A towering volcano stands against a backdrop of clear blue skies, with no visible signs of activity.",
-         "Suddenly, a plume of thick smoke and ash erupts from the volcano's summit, billowing high into the air.",
-        "Molten lava begins to flow down the volcano's slopes, glowing brightly with intense heat and leaving a trail of destruction.",
-        "Explosions rock the volcano as fiery projectiles shoot into the sky, scattering debris and ash in all directions.",
-        "The eruption intensifies, with a massive column of smoke and ash ascending into the atmosphere, darkening the surrounding area.",
-       " As the eruption reaches its peak, a pyroclastic flow cascades down the volcano's sides, engulfing everything in its path with hot gases, ash, and volcanic material."]
+
+    # prompt =["A towering volcano stands against a backdrop of clear blue skies, with no visible signs of activity.",
+    #      "Suddenly, a plume of thick smoke and ash erupts from the volcano's summit, billowing high into the air.",
+    #     "Molten lava begins to flow down the volcano's slopes, glowing brightly with intense heat and leaving a trail of destruction.",
+    #     "Explosions rock the volcano as fiery projectiles shoot into the sky, scattering debris and ash in all directions.",
+    #     "The eruption intensifies, with a massive column of smoke and ash ascending into the atmosphere, darkening the surrounding area.",
+    #    " As the eruption reaches its peak, a pyroclastic flow cascades down the volcano's sides, engulfing everything in its path with hot gases, ash, and volcanic material."]
 
     #Overwriting the prompt below to try out different prompts quickly
 # #     #Natural transition in a forest scene from summer to autumn
@@ -143,28 +143,28 @@ def main(conf):
 # ]
     
 # #     #Construction of a Skyscraper:
-#     prompt = [
-#     "A vast barren land stretches under the open sky, earmarked for a monumental skyscraper.",
-#     "Surveyors traverse the site, placing markers and measuring for precise foundational work.",
-#     "The first signs of activity begin as small teams assess and prepare the ground for excavation.",
-#     "Specialized ground-penetrating equipment rolls in to test soil stability and composition deep below the surface.",
-#     "Temporary fencing is erected around the perimeter, signaling the impending commencement of major construction.",
-#     "Workers start arriving in groups, setting up temporary offices and storage for construction materials.",
-#     "Initial digging operations start, with teams using hand tools to outline the future foundation trenches.",
-#     "Heavy excavation machinery is delivered to the site, ready to begin the major earth-moving work.",
-#     "Massive diggers and bulldozers start reshaping the landscape, carving out the designated foundation pit.",
-#     "Piling machines drive deep into the earth, installing the sturdy pilings needed to support the skyscraper’s massive weight.",
-#     "The site is a hive of activity, with workers coordinating the pouring of concrete to form the robust base of the skyscraper.",
-#     "Cranes begin to dot the skyline, lifting steel beams and construction materials into place.",
-#     "The construction of sublevels progresses, with concrete and steel forming the underground support structure.",
-#     "Above ground, the steel skeleton starts to rise, with each beam meticulously positioned and secured.",
-#     "More machinery and cranes operate in tandem, speeding up the assembly of the skyscraper’s core and frame.",
-#     "Construction teams work on multiple floors simultaneously, adding structural elements and floor slabs.",
-#     "The structure's outline becomes more defined, with the lower floors fully framed and mid-levels beginning to take shape.",
-#     "Glass and cladding materials start being installed on the completed lower floors, encasing the building.",
-#     "The higher levels of the skyscraper take form, with steelwork completing and window installations beginning.",
-#     "The final structural components are put in place, with the topmost beams and architectural features defining the skyscraper’s height and silhouette."
-# ]
+    prompt = [
+    "A vast barren land stretches under the open sky, earmarked for a monumental skyscraper.",
+    "Surveyors traverse the site, placing markers and measuring for precise foundational work.",
+    "The first signs of activity begin as small teams assess and prepare the ground for excavation.",
+    "Specialized ground-penetrating equipment rolls in to test soil stability and composition deep below the surface.",
+    "Temporary fencing is erected around the perimeter, signaling the impending commencement of major construction.",
+    "Workers start arriving in groups, setting up temporary offices and storage for construction materials.",
+    "Initial digging operations start, with teams using hand tools to outline the future foundation trenches.",
+    "Heavy excavation machinery is delivered to the site, ready to begin the major earth-moving work.",
+    "Massive diggers and bulldozers start reshaping the landscape, carving out the designated foundation pit.",
+    "Piling machines drive deep into the earth, installing the sturdy pilings needed to support the skyscraper’s massive weight.",
+    "The site is a hive of activity, with workers coordinating the pouring of concrete to form the robust base of the skyscraper.",
+    "Cranes begin to dot the skyline, lifting steel beams and construction materials into place.",
+    "The construction of sublevels progresses, with concrete and steel forming the underground support structure.",
+    "Above ground, the steel skeleton starts to rise, with each beam meticulously positioned and secured.",
+    "More machinery and cranes operate in tandem, speeding up the assembly of the skyscraper’s core and frame.",
+    "Construction teams work on multiple floors simultaneously, adding structural elements and floor slabs.",
+    "The structure's outline becomes more defined, with the lower floors fully framed and mid-levels beginning to take shape.",
+    "Glass and cladding materials start being installed on the completed lower floors, encasing the building.",
+    "The higher levels of the skyscraper take form, with steelwork completing and window installations beginning.",
+    "The final structural components are put in place, with the topmost beams and architectural features defining the skyscraper’s height and silhouette."
+]
 
     logger.info(prompt)
     negative_prompt = conf['validation_data']['negative_prompt']

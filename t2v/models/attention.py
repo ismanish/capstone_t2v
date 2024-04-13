@@ -18,7 +18,7 @@ from diffusers.utils.import_utils import is_xformers_available
 from diffusers.models.attention import CrossAttention, FeedForward, AdaLayerNorm
 
 from einops import rearrange, repeat
-
+import random
 
 @dataclass
 class Transformer3DModelOutput(BaseOutput):
@@ -270,56 +270,8 @@ class BasicTransformerBlock(nn.Module):
 
 
 class SparseCausalAttention(CrossAttention):
+
     
-    # attention with just frame first
-    
-#     def forward(self, hidden_states, encoder_hidden_states=None, attention_mask=None, video_length=None):
-#         batch_size, sequence_length, _ = hidden_states.shape
-
-#         encoder_hidden_states = encoder_hidden_states if encoder_hidden_states is not None else hidden_states
-
-#         if self.group_norm is not None:
-#             hidden_states = self.group_norm(hidden_states.transpose(1, 2)).transpose(1, 2)
-
-#         query = self.to_q(hidden_states)
-#         dim = query.shape[-1]
-#         query = self.reshape_heads_to_batch_dim(query)
-
-#         key = self.to_k(encoder_hidden_states)
-#         value = self.to_v(encoder_hidden_states)
-
-#         # Reshape key and value to separate frames for cross-attention
-#         key = rearrange(key, "(b f) d c -> b f d c", f=video_length)
-#         value = rearrange(value, "(b f) d c -> b f d c", f=video_length)
-
-#         # Ensure each frame attends to the first frame by repeating first frame's key and value
-#         first_frame_key = key[:, [0], :, :]  # Taking only the first frame
-#         first_frame_value = value[:, [0], :, :]  # Taking only the first frame
-#         repeated_key = repeat(first_frame_key, 'b 1 d c -> b t d c', t=video_length)  # Repeat for all frames
-#         repeated_value = repeat(first_frame_value, 'b 1 d c -> b t d c', t=video_length)  # Repeat for all frames
-
-#         # Flatten back to original dimensions for attention computation
-#         key = rearrange(repeated_key, "b f d c -> (b f) d c")
-#         value = rearrange(repeated_value, "b f d c -> (b f) d c")
-
-#         if attention_mask is not None:
-#             if attention_mask.shape[-1] != query.shape[1]:
-#                 target_length = query.shape[1]
-#                 attention_mask = F.pad(attention_mask, (0, target_length), value=0.0)
-#                 attention_mask = attention_mask.repeat_interleave(self.heads, dim=0)
-
-#         # Compute attention
-#         if self._use_memory_efficient_attention_xformers:
-#             hidden_states = self._memory_efficient_attention_xformers(query, key, value, attention_mask)
-#         else:
-#             hidden_states = self._attention(query, key, value, attention_mask)
-
-#         hidden_states = self.to_out[0](hidden_states)
-#         hidden_states = self.to_out[1](hidden_states)
-
-#         return hidden_states
-
-
     def forward(self, hidden_states, encoder_hidden_states=None, attention_mask=None, video_length=None):
         batch_size, sequence_length, _ = hidden_states.shape
 
@@ -328,47 +280,67 @@ class SparseCausalAttention(CrossAttention):
         if self.group_norm is not None:
             hidden_states = self.group_norm(hidden_states.transpose(1, 2)).transpose(1, 2)
 
+        
         query = self.to_q(hidden_states)
-        query_2 = query.clone()
         dim = query.shape[-1]
         query = self.reshape_heads_to_batch_dim(query)
-        # print(f"shape of query: {query.shape}")
-
-        if self.added_kv_proj_dim is not None:
-            raise NotImplementedError
-
+        
         encoder_hidden_states = encoder_hidden_states if encoder_hidden_states is not None else hidden_states
         key = self.to_k(encoder_hidden_states)
-        # print(f"shape of key: {key.shape}")
-        key_2 = key.clone()
         value = self.to_v(encoder_hidden_states)
-        # print(f"shape of value: {value.shape}")
 
         former_frame_index = torch.arange(video_length) - 1
-        # print(f"former_frame_index - {former_frame_index}")
         former_frame_index[0] = 0
-
+        
+        former2_frame_index = torch.arange(video_length) - 2
+        former2_frame_index[0] = 0
+        former2_frame_index[1] = 0
+        
+        former3_frame_index = torch.arange(video_length) - 3
+        former3_frame_index[0] = 0
+        former3_frame_index[1] = 0
+        former3_frame_index[2] = 0
+        
+        former4_frame_index = torch.arange(video_length) - 4
+        former4_frame_index[0] = 0
+        former4_frame_index[1] = 0
+        former4_frame_index[2] = 0
+        former4_frame_index[3] = 0
+        
+        rn = random.random()
+        
         key = rearrange(key, "(b f) d c -> b f d c", f=video_length)
-        # print(f"shape of key: {key.shape}")
-        key = torch.cat([key[:, [0] * video_length], key[:, former_frame_index]], dim=2)
-        # print(f"shape of key: {key.shape}")
-        # print([0] * video_length)
-        # print(former_frame_index)
+        
+        if rn <= .5:
+            key = torch.cat([key[:, [0] * video_length], key[:, former_frame_index], key[:, former2_frame_index],key[:, former3_frame_index],
+                          key[:, former4_frame_index]], dim=2) 
+        else:
+            key = torch.cat([key[:, former_frame_index], key[:, former2_frame_index],key[:, former3_frame_index],
+                          key[:, former4_frame_index]], dim=2)
+            
+        # key = torch.cat([key[:, [0] * video_length]*.5,key[:, former_frame_index],key[:, former2_frame_index],key[:, former3_frame_index],
+        #      key[:, former4_frame_index]], dim=2)
+        
         key = rearrange(key, "b f d c -> (b f) d c")
-        # print(f"shape of key: {key.shape}")
 
+
+        
         value = rearrange(value, "(b f) d c -> b f d c", f=video_length)
-        # print(f"shape of value: {value.shape}")
-        value = torch.cat([value[:, [0] * video_length], value[:, former_frame_index]], dim=2)
-        # print(f"shape of value: {value.shape}")
+        
+        if rn <= .5:
+            value = torch.cat([value[:, [0] * video_length], value[:, former_frame_index], value[:, former2_frame_index],value[:, former3_frame_index],
+                          value[:, former4_frame_index]], dim=2) 
+        else:
+            value = torch.cat([value[:, former_frame_index], value[:, former2_frame_index],value[:, former3_frame_index],
+                          value[:, former4_frame_index]], dim=2) 
+            
+        # value = torch.cat([value[:, [0] * video_length]*.5, value[:, former_frame_index], value[:, former2_frame_index],value[:, former3_frame_index],
+        #                   value[:, former4_frame_index]], dim=2) 
         value = rearrange(value, "b f d c -> (b f) d c")
-        # print(f"shape of value: {value.shape}")
 
         key = self.reshape_heads_to_batch_dim(key)
-        # print(f"shape of key: {key.shape}")
         value = self.reshape_heads_to_batch_dim(value)
-        # print(f"shape of value: {value.shape}")
-        # print(f"shape of key: {key.shape}")
+        
 
         if attention_mask is not None:
             if attention_mask.shape[-1] != query.shape[1]:
@@ -384,7 +356,6 @@ class SparseCausalAttention(CrossAttention):
         else:
             if self._slice_size is None or query.shape[0] // self._slice_size == 1:
                 hidden_states = self._attention(query, key, value, attention_mask)
-
             else:
                 hidden_states = self._sliced_attention(query, key, value, sequence_length, dim, attention_mask)
 
@@ -393,119 +364,5 @@ class SparseCausalAttention(CrossAttention):
 
         # dropout
         hidden_states = self.to_out[1](hidden_states)
-
-#         # Compute raw attention scores
-#         attention_scores = torch.matmul(query_2, key_2.transpose(-2, -1))
-#         # Apply softmax to get attention probabilities
-#         attention_probs = F.softmax(attention_scores, dim=-1)
-        
-#         selected_heads = [2]#[0, 1, 2, 3]
-#         output_folder = './attention_images'
-#         os.makedirs(output_folder, exist_ok=True)
-        
-#         for head_index in selected_heads:
-#             attention_matrix = attention_probs[head_index].detach().cpu().numpy()
-#             import numpy as np
-#             attention_matrix_log = np.log(attention_matrix + 1e-9)
-
-#             plt.figure(figsize=(10, 8))
-#             plt.imshow(attention_matrix, cmap='hot') #viridis
-#             plt.colorbar()
-#             # plt.title(f'Denoising Step {step_number} - Attention Matrix for Head {head_index}')
-#             plt.title(f'Attention Matrix for Head {head_index}')
-#             plt.xlabel('Key positions (frame/context)')
-#             plt.ylabel('Query positions (current frame)')
-#             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-
-#             # Save the figure with unique filenames for each denoising step and head
-#             fig_filename = os.path.join(output_folder, f'head_{head_index}_{timestamp}.png')
-#             plt.savefig(fig_filename)
-#             plt.close()
-
         return hidden_states
 
-#     # Wrong Attention
-
-#     def forward(self, hidden_states, encoder_hidden_states=None, attention_mask=None, video_length=None):
-#         batch_size, sequence_length, _ = hidden_states.shape
-
-#         encoder_hidden_states = encoder_hidden_states if encoder_hidden_states is not None else hidden_states
-
-#         if self.group_norm is not None:
-#             hidden_states = self.group_norm(hidden_states.transpose(1, 2)).transpose(1, 2)
-
-#         query = self.to_q(hidden_states)
-#         dim = query.shape[-1]
-#         query = self.reshape_heads_to_batch_dim(query)
-
-#         key = self.to_k(encoder_hidden_states)
-#         value = self.to_v(encoder_hidden_states)
-
-#         key = rearrange(key, "(b f) d c -> b f d c", f=video_length)
-#         value = rearrange(value, "(b f) d c -> b f d c", f=video_length)
-
-#         key = rearrange(key, "b f d c -> (b f) d c")
-#         value = rearrange(value, "b f d c -> (b f) d c")
-
-#         key = self.reshape_heads_to_batch_dim(key)
-#         value = self.reshape_heads_to_batch_dim(value)
-
-#         if attention_mask is not None:
-#             if attention_mask.shape[-1] != query.shape[1]:
-#                 target_length = query.shape[1]
-#                 attention_mask = F.pad(attention_mask, (0, target_length), value=0.0)
-#                 attention_mask = attention_mask.repeat_interleave(self.heads, dim=0)
-
-#         if self._use_memory_efficient_attention_xformers:
-#             hidden_states = self._memory_efficient_attention_xformers(query, key, value, attention_mask)
-#             hidden_states = hidden_states.to(query.dtype)
-#         else:
-#             hidden_states = self._attention(query, key, value, attention_mask)
-
-#         hidden_states = self.to_out[0](hidden_states)
-#         hidden_states = self.to_out[1](hidden_states)
-
-#         return hidden_states
-
-#     def forward(self, hidden_states, encoder_hidden_states=None, attention_mask=None, video_length=None):
-#         batch_size, sequence_length, _ = hidden_states.shape
-
-#         encoder_hidden_states = encoder_hidden_states if encoder_hidden_states is not None else hidden_states
-
-#         if self.group_norm is not None:
-#             hidden_states = self.group_norm(hidden_states.transpose(1, 2)).transpose(1, 2)
-
-#         query = self.to_q(hidden_states)
-#         dim = query.shape[-1]
-#         query = self.reshape_heads_to_batch_dim(query)
-
-#         key = self.to_k(encoder_hidden_states)
-#         value = self.to_v(encoder_hidden_states)
-
-#         # Ensure all frames in key and value are accessible to each frame in query
-#         key = rearrange(key, "(b f) d c -> b f d c", f=video_length)
-#         value = rearrange(value, "(b f) d c -> b f d c", f=video_length)
-
-#         # No concatenation with previous or first frame, use all frames as is
-#         key = rearrange(key, "b f d c -> (b f) d c")
-#         value = rearrange(value, "b f d c -> (b f) d c")
-
-#         key = self.reshape_heads_to_batch_dim(key)
-#         value = self.reshape_heads_to_batch_dim(value)
-
-#         if attention_mask is not None:
-#             if attention_mask.shape[-1] != query.shape[1]:
-#                 target_length = query.shape[1]
-#                 attention_mask = F.pad(attention_mask, (0, target_length), value=0.0)
-#                 attention_mask = attention_mask.repeat_interleave(self.heads, dim=0)
-
-#         if self._use_memory_efficient_attention_xformers:
-#             hidden_states = self._memory_efficient_attention_xformers(query, key, value, attention_mask)
-#             hidden_states = hidden_states.to(query.dtype)
-#         else:
-#             hidden_states = self._attention(query, key, value, attention_mask)
-
-#         hidden_states = self.to_out[0](hidden_states)
-#         hidden_states = self.to_out[1](hidden_states)
-
-#         return hidden_states
