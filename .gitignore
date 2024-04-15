@@ -1,0 +1,11 @@
+data/
+outputs
+__assets__
+data
+outputs/
+logs/
+teml/
+temp/
+temp
+final_latents
+final_latents/
