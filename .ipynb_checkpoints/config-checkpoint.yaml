@@ -4,7 +4,7 @@ inference_config:
 validation_data:
   width: 512
   height: 512
-  num_inference_steps: 20
+  num_inference_steps: 1
   guidance_scale: 27
   use_inv_latent: True
   num_inv_steps: 50
@@ -14,6 +14,6 @@ validation_data:
   attention_type_latter: [ "self" ]
   attention_adapt_step: 20
 
-seed: 1265
+seed: 42
 mixed_precision: fp16
 textual_inversion: True 

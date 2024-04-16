@@ -270,44 +270,80 @@ class BasicTransformerBlock(nn.Module):
 
 class SparseCausalAttention(CrossAttention):
 
-
+    
     def forward(self, hidden_states, encoder_hidden_states=None, attention_mask=None, video_length=None):
         batch_size, sequence_length, _ = hidden_states.shape
-        print(sequence_length)
 
         encoder_hidden_states = encoder_hidden_states
 
         if self.group_norm is not None:
             hidden_states = self.group_norm(hidden_states.transpose(1, 2)).transpose(1, 2)
 
+        
         query = self.to_q(hidden_states)
         query_2 = query.clone()
         dim = query.shape[-1]
         query = self.reshape_heads_to_batch_dim(query)
-        # print(f"shape of query: {query.shape}")
-
-        if self.added_kv_proj_dim is not None:
-            raise NotImplementedError
-
+        
         encoder_hidden_states = encoder_hidden_states if encoder_hidden_states is not None else hidden_states
         key = self.to_k(encoder_hidden_states)
         key_2 = key.clone()
         value = self.to_v(encoder_hidden_states)
+        
+        # attn_map = vis_attn(q=self.to_q(hidden_states),k=key,v=value)
 
         former_frame_index = torch.arange(video_length) - 1
         former_frame_index[0] = 0
-
+        
+        former2_frame_index = torch.arange(video_length) - 2
+        former2_frame_index[0] = 0
+        former2_frame_index[1] = 0
+        
+        former3_frame_index = torch.arange(video_length) - 3
+        former3_frame_index[0] = 0
+        former3_frame_index[1] = 0
+        former3_frame_index[2] = 0
+        
+        former4_frame_index = torch.arange(video_length) - 4
+        former4_frame_index[0] = 0
+        former4_frame_index[1] = 0
+        former4_frame_index[2] = 0
+        former4_frame_index[3] = 0
+        
+        rn = random.random()
+        
         key = rearrange(key, "(b f) d c -> b f d c", f=video_length)
-        key = torch.cat([key[:, [0] * video_length], key[:, former_frame_index]], dim=2)
+        
+        if rn <= .5:
+            key = torch.cat([key[:, [0] * video_length], key[:, former_frame_index], key[:, former2_frame_index],key[:, former3_frame_index],
+                          key[:, former4_frame_index]], dim=2) 
+        else:
+            key = torch.cat([key[:, former_frame_index], key[:, former2_frame_index],key[:, former3_frame_index],
+                          key[:, former4_frame_index]], dim=2)
+            
+        # key = torch.cat([key[:, [0] * video_length]*.5,key[:, former_frame_index],key[:, former2_frame_index],key[:, former3_frame_index],
+        #      key[:, former4_frame_index]], dim=2)
+        
         key = rearrange(key, "b f d c -> (b f) d c")
 
+
+        
         value = rearrange(value, "(b f) d c -> b f d c", f=video_length)
-        value = torch.cat([value[:, [0] * video_length], value[:, former_frame_index]], dim=2)
+        
+        if rn <= .5:
+            value = torch.cat([value[:, [0] * video_length], value[:, former_frame_index], value[:, former2_frame_index],value[:, former3_frame_index],
+                          value[:, former4_frame_index]], dim=2) 
+        else:
+            value = torch.cat([value[:, former_frame_index], value[:, former2_frame_index],value[:, former3_frame_index],
+                          value[:, former4_frame_index]], dim=2) 
+            
+        # value = torch.cat([value[:, [0] * video_length]*.5, value[:, former_frame_index], value[:, former2_frame_index],value[:, former3_frame_index],
+        #                   value[:, former4_frame_index]], dim=2) 
         value = rearrange(value, "b f d c -> (b f) d c")
 
         key = self.reshape_heads_to_batch_dim(key)
         value = self.reshape_heads_to_batch_dim(value)
-        # print(f"shape of key: {key.shape}")
+        
 
         if attention_mask is not None:
             if attention_mask.shape[-1] != query.shape[1]:
@@ -315,6 +351,7 @@ class SparseCausalAttention(CrossAttention):
                 attention_mask = F.pad(attention_mask, (0, target_length), value=0.0)
                 attention_mask = attention_mask.repeat_interleave(self.heads, dim=0)
 
+        
         # attention, what we cannot get enough of
         if self._use_memory_efficient_attention_xformers:
             hidden_states = self._memory_efficient_attention_xformers(query, key, value, attention_mask)
@@ -323,7 +360,6 @@ class SparseCausalAttention(CrossAttention):
         else:
             if self._slice_size is None or query.shape[0] // self._slice_size == 1:
                 hidden_states = self._attention(query, key, value, attention_mask)
-
             else:
                 hidden_states = self._sliced_attention(query, key, value, sequence_length, dim, attention_mask)
 
@@ -332,147 +368,122 @@ class SparseCausalAttention(CrossAttention):
 
         # dropout
         hidden_states = self.to_out[1](hidden_states)
-
+        
         # Compute raw attention scores
         attention_scores = torch.matmul(query_2, key_2.transpose(-2, -1))
         # Apply softmax to get attention probabilities
         attention_probs = F.softmax(attention_scores, dim=-1)
-        
-        selected_heads = [2]#[0, 1, 2, 3]
-        output_folder = './attention_images'
-        os.makedirs(output_folder, exist_ok=True)
-        
-        for head_index in selected_heads:
-            attention_matrix = attention_probs[head_index].detach().cpu().numpy()
-            import numpy as np
-            attention_matrix_log = np.log(attention_matrix + 1e-9)
-
-            plt.figure(figsize=(10, 8))
-            plt.imshow(attention_matrix, cmap='hot') #viridis
-            plt.colorbar()
-            # plt.title(f'Denoising Step {step_number} - Attention Matrix for Head {head_index}')
-            plt.title(f'Attention Matrix for Head {head_index}')
-            plt.xlabel('Key positions (frame/context)')
-            plt.ylabel('Query positions (current frame)')
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-
-            # Save the figure with unique filenames for each denoising step and head
-            fig_filename = os.path.join(output_folder, f'head_{head_index}_{timestamp}.png')
-            plt.savefig(fig_filename)
-            plt.close()
-
+        res = vis_attn(attention_probs=attention_probs,q1=query_2,k1=key_2)
         return hidden_states
 
-# class SparseCausalAttention(CrossAttention):
-
     
-#     def forward(self, hidden_states, encoder_hidden_states=None, attention_mask=None, video_length=None):
-#         batch_size, sequence_length, _ = hidden_states.shape
+import torch
+import matplotlib.pyplot as plt
+import numpy as np
+import torchvision.transforms as T
+import torchvision
 
-#         encoder_hidden_states = encoder_hidden_states
+head_counter = 0
 
-#         if self.group_norm is not None:
-#             hidden_states = self.group_norm(hidden_states.transpose(1, 2)).transpose(1, 2)
-
-        
-#         query = self.to_q(hidden_states)
-#         dim = query.shape[-1]
-#         query = self.reshape_heads_to_batch_dim(query)
-        
-#         encoder_hidden_states = encoder_hidden_states if encoder_hidden_states is not None else hidden_states
-#         key = self.to_k(encoder_hidden_states)
-#         value = self.to_v(encoder_hidden_states)
-        
-#         attn_map = vis_attn(q=self.to_q(hidden_states),k=key,v=value)
-
-#         former_frame_index = torch.arange(video_length) - 1
-#         former_frame_index[0] = 0
-        
-#         former2_frame_index = torch.arange(video_length) - 2
-#         former2_frame_index[0] = 0
-#         former2_frame_index[1] = 0
-        
-#         former3_frame_index = torch.arange(video_length) - 3
-#         former3_frame_index[0] = 0
-#         former3_frame_index[1] = 0
-#         former3_frame_index[2] = 0
-        
-#         former4_frame_index = torch.arange(video_length) - 4
-#         former4_frame_index[0] = 0
-#         former4_frame_index[1] = 0
-#         former4_frame_index[2] = 0
-#         former4_frame_index[3] = 0
-        
-#         rn = random.random()
-        
-#         key = rearrange(key, "(b f) d c -> b f d c", f=video_length)
-        
-#         if rn <= .5:
-#             key = torch.cat([key[:, [0] * video_length], key[:, former_frame_index], key[:, former2_frame_index],key[:, former3_frame_index],
-#                           key[:, former4_frame_index]], dim=2) 
-#         else:
-#             key = torch.cat([key[:, former_frame_index], key[:, former2_frame_index],key[:, former3_frame_index],
-#                           key[:, former4_frame_index]], dim=2)
-            
-#         # key = torch.cat([key[:, [0] * video_length]*.5,key[:, former_frame_index],key[:, former2_frame_index],key[:, former3_frame_index],
-#         #      key[:, former4_frame_index]], dim=2)
-        
-#         key = rearrange(key, "b f d c -> (b f) d c")
-
-
-        
-#         value = rearrange(value, "(b f) d c -> b f d c", f=video_length)
-        
-#         if rn <= .5:
-#             value = torch.cat([value[:, [0] * video_length], value[:, former_frame_index], value[:, former2_frame_index],value[:, former3_frame_index],
-#                           value[:, former4_frame_index]], dim=2) 
-#         else:
-#             value = torch.cat([value[:, former_frame_index], value[:, former2_frame_index],value[:, former3_frame_index],
-#                           value[:, former4_frame_index]], dim=2) 
-            
-#         # value = torch.cat([value[:, [0] * video_length]*.5, value[:, former_frame_index], value[:, former2_frame_index],value[:, former3_frame_index],
-#         #                   value[:, former4_frame_index]], dim=2) 
-#         value = rearrange(value, "b f d c -> (b f) d c")
-
-#         key = self.reshape_heads_to_batch_dim(key)
-#         value = self.reshape_heads_to_batch_dim(value)
-        
-
-#         if attention_mask is not None:
-#             if attention_mask.shape[-1] != query.shape[1]:
-#                 target_length = query.shape[1]
-#                 attention_mask = F.pad(attention_mask, (0, target_length), value=0.0)
-#                 attention_mask = attention_mask.repeat_interleave(self.heads, dim=0)
-
-#         # attention, what we cannot get enough of
-#         if self._use_memory_efficient_attention_xformers:
-#             hidden_states = self._memory_efficient_attention_xformers(query, key, value, attention_mask)
-#             # Some versions of xformers return output in fp32, cast it back to the dtype of the input
-#             hidden_states = hidden_states.to(query.dtype)
-#         else:
-#             if self._slice_size is None or query.shape[0] // self._slice_size == 1:
-#                 hidden_states = self._attention(query, key, value, attention_mask)
-#             else:
-#                 hidden_states = self._sliced_attention(query, key, value, sequence_length, dim, attention_mask)
-
-#         # linear proj
-#         hidden_states = self.to_out[0](hidden_states)
-
-#         # dropout
-#         hidden_states = self.to_out[1](hidden_states)
-#         return hidden_states
-
+def vis_attn(attention_probs,q1,k1):
+    global head_counter
+    head_counter += 1
     
-# import torch
-# import matplotlib.pyplot as plt
-# import numpy as np
+    attention_score_tensors = []
+
+    # Compute attention scores and store them as tensors
+    for dim_idx in range(12):
+        q = q1[dim_idx]  # Shape: (4096, 320)
+        k = k1[dim_idx]  # Shape: (4096, 320)
+
+        # Compute attention score
+        attention_score = torch.bmm(q.unsqueeze(0), k.unsqueeze(0).transpose(-2, -1))
+        # attention_score shape: (1, 4096, 4096)
+
+        # Normalize the attention score tensor to [0, 1] range
+        attention_score_norm = (attention_score - attention_score.min()) / (attention_score.max() - attention_score.min())
+
+        # Convert the attention score tensor to a PIL image and resize
+        transform = T.Compose([
+            T.ToPILImage(),
+            T.Resize((512, 512))  # Resize to 512x512
+        ])
+        attention_score_image = transform(attention_score_norm.squeeze())
+
+        # Append the normalized attention score tensor to the list
+        attention_score_tensors.append(attention_score_norm)
+    # img_vis(attention_score_tensors)
+
+    # Create a grid of tensors
+    grid = torchvision.utils.make_grid(attention_score_tensors)
+
+    # Convert the grid tensor to a PIL image
+    transform = T.ToPILImage()
+    grid_image = transform(grid)
+    grid_image = grid_image.resize((512, 512))
+
+    # Save the grid as an image
+    grid_image.save(f"attention_scores_{head_counter}.png")
+    
+def img_vis(attention_score_tensors):
+    # print(len(torch.flatten(attention_score_tensors)))
+    matrix = attention_score_tensors[0]
+    # print(type(matrix))
+    # print(len(matrix))
+    top_indices = sorted(range(len(matrix)), key=lambda i: matrix[i], reverse=True)[:100]
+    print(top_indices)
+    
+    
+#     if head_counter == 16:
+#         print(f"Call number: {head_counter}")
+#         print(attention_probs.shape)
+#         print(q1.shape)
+#         print(k1.shape)
+#         # Create a list to store the attention score tensors
+#         attention_score_tensors = []
+
+#         # Compute attention scores and store them as tensors
+#         for dim_idx in range(12):
+#             q = q1[dim_idx]  # Shape: (4096, 320)
+#             k = k1[dim_idx]  # Shape: (4096, 320)
+
+#             # Compute attention score
+#             attention_score = torch.bmm(q.unsqueeze(0), k.unsqueeze(0).transpose(-2, -1))
+#             # attention_score shape: (1, 4096, 4096)
+
+#             # Normalize the attention score tensor to [0, 1] range
+#             attention_score_norm = (attention_score - attention_score.min()) / (attention_score.max() - attention_score.min())
+            
+#             # Convert the attention score tensor to a PIL image and resize
+#             transform = T.Compose([
+#                 T.ToPILImage(),
+#                 T.Resize((512, 512))  # Resize to 512x512
+#             ])
+#             attention_score_image = transform(attention_score_norm.squeeze())
+
+#             # Append the normalized attention score tensor to the list
+#             attention_score_tensors.append(attention_score_norm)
+
+#         # Create a grid of tensors
+#         grid = torchvision.utils.make_grid(attention_score_tensors)
+
+#         # Convert the grid tensor to a PIL image
+#         transform = T.ToPILImage()
+#         grid_image = transform(grid)
+#         grid_image = grid_image.resize((512, 512))
+
+#         # Save the grid as an image
+#         grid_image.save(f"attention_scores_{head_counter}.png")
+
+
+
 
 # head_counter = 0
 
 # def vis_attn(q, k, v):
 #     global head_counter
 #     head_counter += 1
-#     if head_counter % 16 == 2:
+#     if head_counter % 16 == 0:
 #         print(f"Call number: {head_counter}")
 #         print(f"shape of q: {q.shape}")
 #         print(f"shape of k: {k.shape}")

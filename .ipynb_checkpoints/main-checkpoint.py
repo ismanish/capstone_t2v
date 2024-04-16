@@ -113,17 +113,21 @@ def main(conf):
     prompt = generate_frame_descriptions(context, custom = False)
     # print(prompt)
     
-
-    prompt = [
-    "A poodle dressed as an astronaut, helmet gleaming, floats amidst the vast expanse of space.",
-    "The poodle, in a custom space suit, drifts near a space station, with Earth visible in the background.",
-    "Amidst a backdrop of distant stars, the poodle maneuvers with a small jetpack, dressed in astronaut gear.",
-    "The astronaut poodle examines a floating satellite, tools in paw, under the watchful gaze of a distant sun.",
-    "Floating weightlessly, the poodle in its astronaut suit passes a nebula, awash in colors of blue and purple.",
-    "The poodle astronaut playfully chases a stray space tool, its suit reflecting the light of the Milky Way.",
-    "In zero gravity, the poodle tests out its space suit's agility, leaping between small asteroids.",
-    "With the moon in the background, the poodle astronaut barks quietly, the sound muted by the vacuum of space."
-]
+    prompt =["A towering volcano stands against a backdrop of clear blue skies, with no visible signs of activity.",
+         "Suddenly, a plume of thick smoke and ash erupts from the volcano's summit, billowing high into the air.",
+        "Molten lava begins to flow down the volcano's slopes, glowing brightly with intense heat and leaving a trail of destruction.",
+        "Explosions rock the volcano as fiery projectiles shoot into the sky, scattering debris and ash in all directions.",
+        "The eruption intensifies, with a massive column of smoke and ash ascending into the atmosphere, darkening the surrounding area.",
+       " As the eruption reaches its peak, a pyroclastic flow cascades down the volcano's sides, engulfing everything in its path with hot gases, ash, and volcanic material."]
+    
+#     prompt = [
+#     "A poodle dressed as an astronaut, helmet gleaming, floats amidst the vast expanse of space.",
+#     "The poodle, in a custom space suit, drifts near a space station, with Earth visible in the background.",
+#     "Amidst a backdrop of distant stars, the poodle maneuvers with a small jetpack, dressed in astronaut gear.",
+#     "The astronaut poodle examines a floating satellite, tools in paw, under the watchful gaze of a distant sun.",
+#     "Floating weightlessly, the poodle in its astronaut suit passes a nebula, awash in colors of blue and purple.",
+#     "The poodle astronaut playfully chases a stray space tool, its suit reflecting the light of the Milky Way."
+# ]
 
     #Overwriting the prompt below to try out different prompts quickly
 # #     #Natural transition in a forest scene from summer to autumn
