@@ -3,7 +3,7 @@ import json
 
 def generate_frame_descriptions(context, custom = True):
     if custom:
-        openai.api_key = "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"
+        openai.api_key = "xxx"
         start_chat_log = f"""
         The following is a detailed and vivid description for a video, split into six distinct frames:
 
